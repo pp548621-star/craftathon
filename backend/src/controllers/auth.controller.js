@@ -15,8 +15,8 @@ const register = async (req, res, next) => {
         const exists = await prisma.user.findUnique({ where: { email } });
         if (exists) throw new AppError("Email already in use.", 409);
 
-        // Hash password
-        const passwordHash = await bcrypt.hash(password, 12);
+        // Hash password (10 rounds = good balance of security & speed)
+        const passwordHash = await bcrypt.hash(password, 10);
 
         // Email verification token
         const emailVerifyToken = crypto.randomBytes(32).toString("hex");
@@ -36,30 +36,25 @@ const register = async (req, res, next) => {
             select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
         });
 
-<<<<<<< Updated upstream
-        // Create empty streak for new user
-        if (role === "PATIENT" || !role) {
-            await prisma.streak.create({
-                data: {
-                    userId: user.id,
-                    currentStreak: 0,
-                    longestStreak: 0,
-                },
-            }).catch(() => {}); // Non-blocking
-        }
-=======
-        // Create streak separately
-        await prisma.streak.create({
-            data: { userId: user.id }
-        }).catch(() => { }); // Ignore if it fails
->>>>>>> Stashed changes
+        // Create streak and send email (non-blocking, fire and forget)
+        Promise.all([
+            prisma.streak.create({ data: { userId: user.id } }).catch(() => { }),
+            (async () => {
+                // Use backend URL for verification (returns HTML with redirect)
+                let backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+                // Remove trailing slash if present
+                backendUrl = backendUrl.replace(/\/$/, '');
+                const verifyLink = `${backendUrl}/api/v1/auth/verify-email/${emailVerifyToken}`;
+                const { subject, html } = emailTemplates.verification(firstName, verifyLink);
+                await sendEmail(email, subject, html).catch(() => { });
+            })()
+        ]);
 
-        // Send verification email (non-blocking)
-        const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
-        const { subject, html } = emailTemplates.verification(firstName, verifyLink);
-        sendEmail(email, subject, html).catch(() => { }); // fire and forget
-
-        sendCreated(res, { user }, "Registration successful. Please verify your email.");
+        // Return verification link in response for testing (will be hidden in production UI)
+        let backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+        backendUrl = backendUrl.replace(/\/$/, '');
+        const verifyLink = `${backendUrl}/api/v1/auth/verify-email/${emailVerifyToken}`;
+        sendCreated(res, { user, verifyLink }, "Registration successful. Please verify your email.");
     } catch (err) {
         next(err);
     }
@@ -71,14 +66,60 @@ const verifyEmail = async (req, res, next) => {
         const { token } = req.params;
 
         const user = await prisma.user.findFirst({ where: { emailVerifyToken: token } });
-        if (!user) throw new AppError("Invalid or expired verification token.", 400);
+        if (!user) {
+            return res.send(`
+                <html>
+                    <head>
+                        <title>Email Verification</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f3f4f6; }
+                            .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                            h1 { color: #dc2626; margin: 0 0 10px 0; }
+                            p { color: #4b5563; margin: 0 0 20px 0; }
+                            a { display: inline-block; background: #2F5B8C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>Verification Link Expired</h1>
+                            <p>Sorry, this link has expired. Please try signing up again.</p>
+                            <a href="${process.env.FRONTEND_URL || 'https://craftathon.vercel.app'}/signup">Back to Signup</a>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
 
         await prisma.user.update({
             where: { id: user.id },
             data: { isEmailVerified: true, emailVerifyToken: null },
         });
 
-        sendSuccess(res, {}, "Email verified successfully.");
+        // Send HTML redirect to login
+        res.send(`
+            <html>
+                <head>
+                    <title>Email Verified - Redirecting...</title>
+                    <meta http-equiv="refresh" content="2;url=${process.env.FRONTEND_URL || 'https://craftathon.vercel.app'}/login">
+                    <style>
+                        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f3f4f6; }
+                        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                        .success { color: #16a34a; font-size: 48px; margin: 0 0 20px 0; }
+                        h1 { color: #1f2937; margin: 0 0 10px 0; }
+                        p { color: #4b5563; margin: 0 0 20px 0; }
+                        a { display: inline-block; background: #2F5B8C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="success">✓</div>
+                        <h1>You successfully verified your email!</h1>
+                        <p>Redirecting to login in 2 seconds...</p>
+                        <p>If not redirected, <a href="${process.env.FRONTEND_URL || 'https://craftathon.vercel.app'}/login">click here to continue</a></p>
+                    </div>
+                </body>
+            </html>
+        `);
     } catch (err) {
         next(err);
     }
@@ -94,15 +135,16 @@ const login = async (req, res, next) => {
             throw new AppError("Invalid email or password.", 401);
         }
         if (!user.isActive) throw new AppError("Account deactivated. Contact support.", 403);
+        if (!user.isEmailVerified) throw new AppError("Please verify your email first. Check your inbox for the verification link.", 403);
 
         const payload = { id: user.id, role: user.role };
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
 
-        // Store refresh token
+        // Store refresh token (non-blocking)
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
-        await prisma.refreshToken.create({ data: { token: refreshToken, userId: user.id, expiresAt } });
+        prisma.refreshToken.create({ data: { token: refreshToken, userId: user.id, expiresAt } }).catch(() => { }); // fire and forget
 
         sendSuccess(res, {
             accessToken,
