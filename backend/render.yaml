@@ -1,0 +1,37 @@
+services:
+  # Web Service (Backend API)
+  - type: web
+    name: medication-adherence-api
+    runtime: node
+    region: singapore  # or oregon, frankfurt, etc.
+    plan: free
+    buildCommand: npm install && npx prisma generate && npx prisma db push
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000  # Render assigns this automatically
+      - key: DATABASE_URL
+        sync: false  # You'll set this manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true  # Auto-generates a secret
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: "Medication Adherence <no-reply@medadherence.com>"
+      - key: FRONTEND_URL
+        sync: false  # Your deployed frontend URL
