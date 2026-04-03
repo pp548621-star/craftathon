@@ -1,121 +1,185 @@
-import Navbar from '../components/Navbar'
-import Card from '../components/Card'
+import { Flame, Pill, Check, X, TrendingUp, AlertCircle } from 'lucide-react'
+import DashboardLayout from '../components/DashboardLayout'
 import CircleProgress from '../components/CircleProgress'
 
 export default function Adherence() {
-  const monthlyData = [
-    { month: 'January', adherence: 65 },
-    { month: 'February', adherence: 72 },
-    { month: 'March', adherence: 78 },
-    { month: 'April', adherence: 85 },
+  const adherenceRate = 85
+  const currentStreak = 15
+  const dosesThisMonth = 42
+  const missedDoses = 8
+  const monthlyTrend = [
+    { month: 'January', adherence: 72 },
+    { month: 'February', adherence: 78 },
+    { month: 'March', adherence: 85 }
   ]
 
+  const StatCard = ({ icon: Icon, label, value, subtext, gradient }) => (
+    <div className={`bg-gradient-to-br ${gradient} rounded-2xl shadow-md border border-gray-200/50 p-6 transition-all duration-300 hover:shadow-lg`}>
+      <div className="flex items-start justify-between mb-4">
+        <div className="p-3 rounded-lg bg-white/30 backdrop-blur-sm">
+          <Icon size={24} className="text-white" />
+        </div>
+      </div>
+      <p className="text-white/80 text-sm font-medium mb-2">{label}</p>
+      <p className="text-3xl font-bold text-white mb-1">{value}</p>
+      <p className="text-white/70 text-xs">{subtext}</p>
+    </div>
+  )
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-light-bg to-white-text">
-      <Navbar />
-
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold text-primary-dark mb-2">📊 Adherence Dashboard</h1>
-        <p className="text-gray-600 mb-8">Track your medication compliance</p>
-
-        {/* Current Month */}
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          <Card className="flex flex-col items-center justify-center p-12">
-            <CircleProgress percentage={85} size={180} title="This Month" />
-            <p className="mt-6 text-center text-gray-600">
-              Excellent! You're maintaining great medication adherence.
-            </p>
-          </Card>
-
-          <Card className="p-8">
-            <h3 className="text-2xl font-bold text-primary-dark mb-8">Performance</h3>
-            <div className="space-y-6">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700 font-semibold">Current Streak</span>
-                  <span className="text-2xl font-bold text-primary-blue">🔥 18 Days</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-primary-blue h-3 rounded-full"
-                    style={{ width: '90%' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700 font-semibold">Doses Taken</span>
-                  <span className="text-2xl font-bold text-green-500">68/80</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-500 h-3 rounded-full"
-                    style={{ width: '85%' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700 font-semibold">Missed Doses</span>
-                  <span className="text-2xl font-bold text-red-500">12/80</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-red-500 h-3 rounded-full"
-                    style={{ width: '15%' }}
-                  />
-                </div>
-              </div>
+    <DashboardLayout pageTitle="Adherence Report" pageSubtitle="Monitor your medication compliance and progress">
+      <div className="space-y-8">
+        {/* Main Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-6 text-center transition-all duration-300 hover:shadow-lg">
+            <div className="flex justify-center mb-4">
+              <CircleProgress percentage={adherenceRate} size="sm" />
             </div>
-          </Card>
+            <p className="text-gray-600 text-sm font-medium">Overall Adherence</p>
+            <p className="text-3xl font-bold text-[#2F5B8C] mt-3">{adherenceRate}%</p>
+            <p className="text-xs text-gray-500 mt-2">This month</p>
+          </div>
+
+          <StatCard 
+            icon={Flame}
+            label="Current Streak"
+            value={`${currentStreak}d`}
+            subtext="Days in a row"
+            gradient="from-orange-500 to-red-500"
+          />
+
+          <StatCard 
+            icon={Check}
+            label="Doses Taken"
+            value={dosesThisMonth}
+            subtext={`Out of 50 scheduled`}
+            gradient="from-emerald-500 to-teal-500"
+          />
+
+          <StatCard 
+            icon={X}
+            label="Missed Doses"
+            value={missedDoses}
+            subtext="Keep improving!"
+            gradient="from-red-500 to-pink-500"
+          />
         </div>
 
         {/* Monthly Trend */}
-        <Card className="p-8 mb-8">
-          <h2 className="text-2xl font-bold text-primary-dark mb-8">Monthly Trend</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 rounded-lg bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3]">
+              <TrendingUp className="text-white" size={20} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">Monthly Trend</h3>
+          </div>
           <div className="space-y-6">
-            {monthlyData.map((data) => (
-              <div key={data.month}>
-                <div className="flex justify-between mb-2">
-                  <span className="font-semibold text-gray-700">{data.month}</span>
-                  <span className="font-bold text-primary-blue">{data.adherence}%</span>
+            {monthlyTrend.map((item) => (
+              <div key={item.month}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold text-gray-900">{item.month}</span>
+                  <span className="font-bold text-[#2F5B8C] bg-blue-50 px-3 py-1 rounded-lg text-sm">{item.adherence}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
-                  <div
-                    className="bg-gradient-to-r from-primary-blue to-primary-dark h-4 rounded-full transition-all"
-                    style={{ width: `${data.adherence}%` }}
+                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-sm">
+                  <div 
+                    className="bg-gradient-to-r from-[#2F5B8C] via-[#3E6FA3] to-[#22C55E] h-4 rounded-full transition-all duration-500" 
+                    style={{ width: `${item.adherence}%` }} 
                   />
                 </div>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
 
-        {/* Tips */}
-        <Card className="p-8 bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300">
-          <h3 className="text-2xl font-bold text-yellow-800 mb-4">💡 Tips to Improve</h3>
-          <ul className="space-y-3">
-            <li className="flex gap-3 text-yellow-900">
-              <span className="text-xl">✓</span>
-              <span>Set phone reminders for your medication times</span>
-            </li>
-            <li className="flex gap-3 text-yellow-900">
-              <span className="text-xl">✓</span>
-              <span>Use a pill organizer to prepare your weekly doses</span>
-            </li>
-            <li className="flex gap-3 text-yellow-900">
-              <span className="text-xl">✓</span>
-              <span>Take medications at the same time every day</span>
-            </li>
-            <li className="flex gap-3 text-yellow-900">
-              <span className="text-xl">✓</span>
-              <span>Share your progress with your doctor or caregiver</span>
-            </li>
-          </ul>
-        </Card>
+        {/* Performance Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Time-based Adherence */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-8">Adherence by Time</h3>
+            <div className="space-y-6">
+              {[
+                { label: 'Morning', emoji: '🌅', percentage: 95, color: 'from-blue-500 to-cyan-500' },
+                { label: 'Afternoon', emoji: '☀️', percentage: 80, color: 'from-amber-500 to-orange-500' },
+                { label: 'Evening', emoji: '🌙', percentage: 70, color: 'from-indigo-500 to-purple-500' }
+              ].map((item, idx) => (
+                <div key={idx}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-semibold text-gray-900">{item.label}</span>
+                    <span className="font-bold text-white bg-gradient-to-r px-3 py-1 rounded-lg text-sm" style={{background: `linear-gradient(to right, var(--color-start), var(--color-end))`}}>
+                      <span className={`bg-gradient-to-r ${item.color} bg-clip-text text-transparent font-bold`}>
+                        {item.percentage}%
+                      </span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-sm">
+                    <div 
+                      className={`bg-gradient-to-r ${item.color} h-3 rounded-full transition-all duration-500`}
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Key Insights */}
+          <div className="bg-gradient-to-br from-[#2F5B8C]/5 to-[#3E6FA3]/5 rounded-2xl shadow-md border border-[#3E6FA3]/20 p-8">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3]">
+                <AlertCircle className="text-white" size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Key Insights</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border-l-4 border-orange-500 shadow-sm hover:shadow-md transition-all">
+                <p className="font-semibold text-gray-900 text-sm mb-2">⚠️ Challenge Alert</p>
+                <p className="text-sm text-gray-600">You often miss evening doses after 8 PM. Consider setting phone reminders.</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border-l-4 border-emerald-500 shadow-sm hover:shadow-md transition-all">
+                <p className="font-semibold text-gray-900 text-sm mb-2">✓ Strong Pattern</p>
+                <p className="text-sm text-gray-600">Morning adherence is excellent at 95%. Keep this routine!</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all">
+                <p className="font-semibold text-gray-900 text-sm mb-2">💡 Recommendation</p>
+                <p className="text-sm text-gray-600">Pair evening meds with dinner. This helps 80% of users improve adherence.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed Medication Adherence */}
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 rounded-lg bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3]">
+              <Pill className="text-white" size={20} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">Medication-wise Adherence</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { name: 'Aspirin', adherence: 92, doses: '46/50', color: 'from-[#2F5B8C]' },
+              { name: 'Metformin', adherence: 88, doses: '44/50', color: 'from-cyan-500' },
+              { name: 'Lisinopril', adherence: 75, doses: '37/50', color: 'from-indigo-500' }
+            ].map((med) => (
+              <div key={med.name} className="bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-gray-200 p-6 hover:shadow-lg transition-all duration-300">
+                <h4 className="font-bold text-gray-900 mb-4">{med.name}</h4>
+                <div className="mb-4">
+                  <p className={`text-4xl font-bold bg-gradient-to-r ${med.color} to-cyan-500 bg-clip-text text-transparent`}>
+                    {med.adherence}%
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">{med.doses} doses</p>
+                </div>
+                <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className={`bg-gradient-to-r ${med.color} to-cyan-500 h-3 rounded-full transition-all duration-500`}
+                    style={{ width: `${med.adherence}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

@@ -9,6 +9,7 @@ import AddMedication from '../pages/AddMedication'
 import Schedule from '../pages/Schedule'
 import Adherence from '../pages/Adherence'
 import Profile from '../pages/Profile'
+import Notifications from '../pages/Notifications'
 import DoctorDashboard from '../pages/DoctorDashboard'
 import PatientDetail from '../pages/PatientDetail'
 import Alerts from '../pages/Alerts'
@@ -76,6 +77,15 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
           </ProtectedRoute>
         }
       />
