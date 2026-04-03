@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ChevronLeft, Clock, Calendar } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
+import Notification from '../components/Notification'
+import { api } from '../services/api'
 
 export default function AddMedication() {
   const navigate = useNavigate()
+  const [isLoading, setIsLoading] = useState(false)
+  const [notification, setNotification] = useState(null)
   const [formData, setFormData] = useState({
     name: '', dosage: '', frequency: 'daily',
     selectedDays: { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false },
@@ -32,9 +36,49 @@ export default function AddMedication() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (validateForm()) setTimeout(() => navigate('/schedule'), 500)
+    if (!validateForm()) return
+
+    setIsLoading(true)
+    setNotification(null)
+
+    try {
+      // Transform form data to API format
+      const medicationData = {
+        name: formData.name,
+        dosage: formData.dosage,
+        frequency: formData.frequency.toUpperCase(),
+        times: [formData.time],
+        startDate: formData.startDate || new Date().toISOString().split('T')[0],
+        endDate: formData.endDate || null,
+        instructions: '',
+        unit: 'mg'
+      }
+
+      // Add custom days for weekly frequency
+      if (formData.frequency === 'weekly') {
+        const dayMap = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 0 }
+        const selectedDays = Object.entries(formData.selectedDays)
+          .filter(([_, selected]) => selected)
+          .map(([day]) => dayMap[day])
+        medicationData.customDays = selectedDays
+      }
+
+      const result = await api.createMedication(medicationData)
+      
+      if (result.success) {
+        setNotification({ message: 'Medication added successfully!', type: 'success' })
+        setTimeout(() => navigate('/dashboard'), 1500)
+      } else {
+        setNotification({ message: result.message || 'Failed to add medication', type: 'error' })
+      }
+    } catch (error) {
+      console.error('Error adding medication:', error)
+      setNotification({ message: error.message || 'Network error. Please try again.', type: 'error' })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -156,7 +200,7 @@ export default function AddMedication() {
 
                 {/* Time */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <Clock size={16} className="text-[#3E6FA3]" />
                     Medicine Time
                   </label>
@@ -205,10 +249,11 @@ export default function AddMedication() {
             <div className="flex gap-4 pt-8 border-t border-gray-200">
               <button 
                 type="submit" 
-                className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3] text-white font-semibold hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+                disabled={isLoading}
+                className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3] text-white font-semibold hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus size={20} />
-                Add Medication
+                {isLoading ? 'Adding...' : 'Add Medication'}
               </button>
               <button 
                 type="button" 
@@ -222,6 +267,13 @@ export default function AddMedication() {
           </form>
         </div>
       </div>
+      {notification && (
+        <Notification 
+          message={notification.message} 
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </DashboardLayout>
   )
 }

@@ -1,42 +1,161 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Mail, Phone, MapPin, Calendar, Lock, Trash2, Edit2, Save, X, Bell, Smartphone, Eye } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
+import { api } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import Notification from '../components/Notification'
 
 export default function Profile() {
+  const { user, updateUser } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [notification, setNotification] = useState(null)
   const [formData, setFormData] = useState({
-    name: 'John Patient',
-    email: 'john.patient@example.com',
-    phone: '+1 (555) 123-4567',
-    dob: '1985-06-15',
-    address: '123 Healthcare St, Medical City, MC 12345'
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    address: '',
+    bloodGroup: '',
+    conditions: ''
   })
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    fetchUserProfile()
+  }, [])
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const result = await api.getUserProfile()
+      
+      if (result.success && result.data?.user) {
+        const userData = result.data.user
+        setFormData({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          dateOfBirth: userData.profile?.dateOfBirth?.split('T')[0] || '',
+          address: userData.profile?.address || '',
+          bloodGroup: userData.profile?.bloodGroup || '',
+          conditions: userData.profile?.conditions || ''
+        })
+      } else {
+        // Fallback to localStorage user data
+        if (user) {
+          setFormData({
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            dateOfBirth: '',
+            address: '',
+            bloodGroup: '',
+            conditions: ''
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err)
+      setError('Failed to load profile data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSave = () => {
-    setIsEditing(false)
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        profile: {
+          dateOfBirth: formData.dateOfBirth,
+          address: formData.address,
+          bloodGroup: formData.bloodGroup,
+          conditions: formData.conditions
+        }
+      }
+
+      const result = await api.updateUserProfile(profileData)
+      
+      if (result.success) {
+        // Update local user data
+        updateUser({ ...user, ...profileData })
+        setNotification({ message: 'Profile updated successfully!', type: 'success' })
+        setIsEditing(false)
+      } else {
+        setNotification({ message: result.message || 'Failed to update profile', type: 'error' })
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err)
+      setNotification({ message: 'Network error. Please try again.', type: 'error' })
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const getInitial = (name) => name.charAt(0).toUpperCase()
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
+  }
+
+  const fullName = `${formData.firstName} ${formData.lastName}`.trim()
+
+  if (loading) {
+    return (
+      <DashboardLayout pageTitle="Profile" pageSubtitle="Manage your account settings and information">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-12 h-12 border-4 border-[#2F5B8C] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout pageTitle="Profile" pageSubtitle="Manage your account settings and information">
+      {/* Notification */}
+      {notification && (
+        <Notification 
+          message={notification.message} 
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-6">
+          {error}
+          <button onClick={fetchUserProfile} className="ml-4 underline">Retry</button>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Profile Header Card */}
         <div className="bg-gradient-to-r from-[#2F5B8C] to-[#3E6FA3] rounded-xl shadow-md p-6 text-white hover:shadow-lg transition-all duration-300">
           <div className="flex items-center gap-6">
             {/* Avatar */}
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center font-bold text-2xl text-white flex-shrink-0">
-              {getInitial(formData.name)}
+              {getInitials(formData.firstName, formData.lastName)}
             </div>
             
             {/* User Info */}
             <div>
-              <h2 className="text-2xl font-semibold text-white mb-1">{formData.name}</h2>
-              <p className="text-white/80 text-sm">Patient Member</p>
+              <h2 className="text-2xl font-semibold text-white mb-1">{fullName || 'User'}</h2>
+              <p className="text-white/80 text-sm">{user?.role || 'Patient'} Member</p>
+              <p className="text-white/60 text-xs mt-1">{formData.email}</p>
             </div>
           </div>
         </div>
@@ -45,6 +164,7 @@ export default function Profile() {
         <div className="flex justify-end">
           <button
             onClick={() => setIsEditing(!isEditing)}
+            disabled={saving}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
               isEditing
                 ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -70,15 +190,34 @@ export default function Profile() {
           <h3 className="text-2xl font-bold text-gray-900 mb-8">Personal Information</h3>
 
           <div className="space-y-6">
-            {/* Name */}
+            {/* First Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                Edit2 Profile Name
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                First Name
               </label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                disabled={!isEditing}
+                className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none ${
+                  isEditing
+                    ? 'border-[#3E6FA3] bg-white focus:ring-2 focus:ring-[#3E6FA3]/10 focus:shadow-md'
+                    : 'border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+              />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
                 onChange={handleChange}
                 disabled={!isEditing}
                 className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none ${
@@ -91,7 +230,7 @@ export default function Profile() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Mail size={16} className="text-[#3E6FA3]" />
                 Email Address
               </label>
@@ -99,19 +238,15 @@ export default function Profile() {
                 type="email"
                 name="email"
                 value={formData.email}
-                onChange={handleChange}
-                disabled={!isEditing}
-                className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none ${
-                  isEditing
-                    ? 'border-[#3E6FA3] bg-white focus:ring-2 focus:ring-[#3E6FA3]/10 focus:shadow-md'
-                    : 'border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed'
-                }`}
+                disabled={true}
+                className="w-full px-5 py-3 rounded-xl border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed"
               />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Phone size={16} className="text-[#3E6FA3]" />
                 Phone Number
               </label>
@@ -131,14 +266,14 @@ export default function Profile() {
 
             {/* Date of Birth */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Calendar size={16} className="text-[#3E6FA3]" />
                 Date of Birth
               </label>
               <input
                 type="date"
-                name="dob"
-                value={formData.dob}
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
                 onChange={handleChange}
                 disabled={!isEditing}
                 className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none ${
@@ -151,7 +286,7 @@ export default function Profile() {
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <MapPin size={16} className="text-[#3E6FA3]" />
                 Address
               </label>
@@ -169,15 +304,64 @@ export default function Profile() {
               />
             </div>
 
+            {/* Blood Group */}
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                Blood Group
+              </label>
+              <select
+                name="bloodGroup"
+                value={formData.bloodGroup}
+                onChange={handleChange}
+                disabled={!isEditing}
+                className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none ${
+                  isEditing
+                    ? 'border-[#3E6FA3] bg-white focus:ring-2 focus:ring-[#3E6FA3]/10 focus:shadow-md'
+                    : 'border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+
+            {/* Medical Conditions */}
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                Medical Conditions
+              </label>
+              <textarea
+                name="conditions"
+                value={formData.conditions}
+                onChange={handleChange}
+                disabled={!isEditing}
+                rows="2"
+                placeholder="e.g., Diabetes, Hypertension"
+                className={`w-full px-5 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none resize-none ${
+                  isEditing
+                    ? 'border-[#3E6FA3] bg-white focus:ring-2 focus:ring-[#3E6FA3]/10 focus:shadow-md'
+                    : 'border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+              />
+            </div>
+
             {/* Save Button */}
             {isEditing && (
               <div className="flex gap-4 pt-6 border-t border-gray-200">
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-[#22C55E] to-[#16a34a] text-white font-semibold hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+                  disabled={saving}
+                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-[#22C55E] to-[#16a34a] text-white font-semibold hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Save size={20} />
-                  Save Changes
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             )}
@@ -190,7 +374,7 @@ export default function Profile() {
           <div className="space-y-1">
             {[
               { label: 'Email Notifications', desc: 'Receive medication reminders via email', icon: Mail },
-              { label: 'SMS Notifications', desc: 'Receive medication reminders via SMS', icon: Smartphone },
+              { label: 'Push Notifications', desc: 'Receive medication reminders via browser', icon: Bell },
               { label: 'Doctor Access', desc: 'Allow your doctor to view your adherence', icon: Eye }
             ].map((setting, idx) => (
               <div key={idx} className="flex items-center justify-between py-5 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 px-4 -mx-4 transition-all">

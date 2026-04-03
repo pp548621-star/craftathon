@@ -1,69 +1,140 @@
-import { Bell, Check, AlertCircle, Info, Clock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Bell, Check, AlertCircle, Info, Clock, Trash2, CheckCheck } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
+import { api } from '../services/api'
+import Notification from '../components/Notification'
 
 export default function Notifications() {
-  const notifications = [
-    {
-      id: 1,
-      type: 'reminder',
-      title: 'Medication Reminder',
-      message: 'Time to take your Aspirin (500mg). Scheduled for 2:00 PM',
-      time: '30 minutes ago',
-      icon: Clock,
-      color: 'from-blue-500 to-cyan-500',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'success',
-      title: 'Dose Confirmed',
-      message: 'You successfully took your Metformin this morning',
-      time: '2 hours ago',
-      icon: Check,
-      color: 'from-green-500 to-emerald-500',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'alert',
-      title: 'Low Adherence Alert',
-      message: 'Your adherence rate dropped to 80% this week. Stay consistent!',
-      time: '1 day ago',
-      icon: AlertCircle,
-      color: 'from-orange-500 to-red-500',
-      read: true
-    },
-    {
-      id: 4,
-      type: 'info',
-      title: 'Medication Expiring Soon',
-      message: 'Your Lisinopril prescription expires in 7 days. Request a refill from your doctor.',
-      time: '2 days ago',
-      icon: Info,
-      color: 'from-purple-500 to-pink-500',
-      read: true
-    },
-    {
-      id: 5,
-      type: 'success',
-      title: 'Weekly Goal Achieved',
-      message: 'Great job! You achieved 95% adherence this week',
-      time: '3 days ago',
-      icon: Check,
-      color: 'from-green-500 to-teal-500',
-      read: true
-    },
-    {
-      id: 6,
-      type: 'info',
-      title: 'Doctor Message',
-      message: 'Your doctor added a note to your profile. Check your account for details.',
-      time: '1 week ago',
-      icon: Info,
-      color: 'from-blue-500 to-indigo-500',
-      read: true
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications()
+  }, [])
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const result = await api.getNotifications()
+      
+      if (result.success) {
+        // Transform API data to notification format
+        const notifs = result.data?.notifications?.map(n => ({
+          id: n.id,
+          type: n.type?.toLowerCase() || 'info',
+          title: getNotificationTitle(n.type),
+          message: n.message,
+          time: formatTime(n.createdAt),
+          icon: getNotificationIcon(n.type),
+          color: getNotificationColor(n.type),
+          read: n.isRead,
+          createdAt: n.createdAt
+        })) || []
+
+        setNotifications(notifs)
+      } else {
+        setError(result.message || 'Failed to load notifications')
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err)
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  const getNotificationTitle = (type) => {
+    const titles = {
+      'DOSE_REMINDER': 'Medication Reminder',
+      'DOSE_MISSED': 'Missed Dose Alert',
+      'DOSE_TAKEN': 'Dose Confirmed',
+      'ADHERENCE_ALERT': 'Adherence Alert',
+      'REFILL_REMINDER': 'Refill Reminder',
+      'CAREGIVER_ALERT': 'Caregiver Alert',
+      'WEEKLY_REPORT': 'Weekly Report Ready'
+    }
+    return titles[type] || 'Notification'
+  }
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'DOSE_REMINDER': return Clock
+      case 'DOSE_MISSED': return AlertCircle
+      case 'DOSE_TAKEN': return Check
+      case 'ADHERENCE_ALERT': return AlertCircle
+      case 'REFILL_REMINDER': return Info
+      case 'CAREGIVER_ALERT': return AlertCircle
+      case 'WEEKLY_REPORT': return Info
+      default: return Bell
+    }
+  }
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'DOSE_REMINDER': return 'from-blue-500 to-cyan-500'
+      case 'DOSE_MISSED': return 'from-red-500 to-pink-500'
+      case 'DOSE_TAKEN': return 'from-green-500 to-emerald-500'
+      case 'ADHERENCE_ALERT': return 'from-orange-500 to-red-500'
+      case 'REFILL_REMINDER': return 'from-purple-500 to-pink-500'
+      case 'CAREGIVER_ALERT': return 'from-orange-500 to-red-500'
+      case 'WEEKLY_REPORT': return 'from-blue-500 to-indigo-500'
+      default: return 'from-gray-500 to-slate-500'
+    }
+  }
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+    return date.toLocaleDateString()
+  }
+
+  const handleMarkAsRead = async (ids) => {
+    try {
+      const result = await api.markNotificationsAsRead(ids)
+      if (result.success) {
+        setNotifications(notifications.map(n => 
+          ids.includes(n.id) ? { ...n, read: true } : n
+        ))
+      }
+    } catch (err) {
+      console.error('Error marking notifications as read:', err)
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+    if (unreadIds.length > 0) {
+      await handleMarkAsRead(unreadIds)
+      setToast({ message: 'All notifications marked as read', type: 'success' })
+    }
+  }
+
+  const handleDelete = async (id) => {
+    try {
+      const result = await api.deleteNotification(id)
+      if (result.success) {
+        setNotifications(notifications.filter(n => n.id !== id))
+        setToast({ message: 'Notification deleted', type: 'success' })
+      }
+    } catch (err) {
+      console.error('Error deleting notification:', err)
+      setToast({ message: 'Failed to delete notification', type: 'error' })
+    }
+  }
 
   const unreadCount = notifications.filter(n => !n.read).length
   const unreadNotifications = notifications.filter(n => !n.read)
@@ -90,9 +161,24 @@ export default function Notifications() {
                 <h4 className="font-semibold text-gray-900">{notification.title}</h4>
                 <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
               </div>
-              {!notification.read && (
-                <div className="w-2 h-2 rounded-full bg-[#3E6FA3] flex-shrink-0 mt-1" />
-              )}
+              <div className="flex items-center gap-2">
+                {!notification.read && (
+                  <button
+                    onClick={() => handleMarkAsRead([notification.id])}
+                    className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+                    title="Mark as read"
+                  >
+                    <Check size={18} />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(notification.id)}
+                  className="p-2 rounded-lg hover:bg-red-100 text-red-500 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">{notification.time}</p>
           </div>
@@ -101,10 +187,37 @@ export default function Notifications() {
     )
   }
 
+  if (loading) {
+    return (
+      <DashboardLayout pageTitle="Notifications" pageSubtitle="Stay updated on your medications and health">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-12 h-12 border-4 border-[#2F5B8C] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout pageTitle="Notifications" pageSubtitle="Stay updated on your medications and health">
+      {/* Toast */}
+      {toast && (
+        <Notification 
+          message={toast.message} 
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-6">
+          {error}
+          <button onClick={fetchNotifications} className="ml-4 underline">Retry</button>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Notification Stats */}
+        {/* Notification Stats & Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-[#2F5B8C] to-[#3E6FA3] rounded-xl shadow-md p-6 text-white">
             <div className="flex items-center justify-between">
@@ -136,6 +249,19 @@ export default function Notifications() {
             </div>
           </div>
         </div>
+
+        {/* Mark All as Read Button */}
+        {unreadCount > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleMarkAllAsRead}
+              className="flex items-center gap-2 px-4 py-2 bg-[#2F5B8C] text-white rounded-lg font-medium hover:bg-[#264a73] transition-colors"
+            >
+              <CheckCheck size={18} />
+              Mark all as read
+            </button>
+          </div>
+        )}
 
         {/* Unread Notifications */}
         {unreadNotifications.length > 0 && (
