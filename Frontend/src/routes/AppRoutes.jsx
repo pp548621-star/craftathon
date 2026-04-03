@@ -9,6 +9,7 @@ import ForgotPassword from '../pages/ForgotPassword'
 import ResetPassword from '../pages/ResetPassword'
 import PatientDashboard from '../pages/PatientDashboard'
 import AddMedication from '../pages/AddMedication'
+import EditMedication from '../pages/EditMedication'
 import Schedule from '../pages/Schedule'
 import Adherence from '../pages/Adherence'
 import Profile from '../pages/Profile'
@@ -79,6 +80,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="patient">
             <AddMedication />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/edit-medication/:medicationId"
+        element={
+          <ProtectedRoute requiredRole="patient">
+            <EditMedication />
           </ProtectedRoute>
         }
       />
