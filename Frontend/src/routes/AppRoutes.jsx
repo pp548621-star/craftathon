@@ -48,8 +48,14 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" />
   }
 
-  if (requiredRole && user?.role?.toLowerCase() !== requiredRole.toLowerCase()) {
-    return <Navigate to="/" />
+  if (requiredRole) {
+    const userRole = user?.role?.toUpperCase()
+    const required = requiredRole.toUpperCase()
+    // Special case: DOCTOR and CAREGIVER can both access caregiver routes
+    const hasAccess = userRole === required || (required === 'CAREGIVER' && userRole === 'DOCTOR')
+    if (!hasAccess) {
+      return <Navigate to="/" />
+    }
   }
 
   return children

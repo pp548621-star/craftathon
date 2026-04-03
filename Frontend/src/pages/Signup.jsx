@@ -48,14 +48,17 @@ export default function Signup() {
       
       if (result.success) {
         setNotification({ 
-          message: result.message || 'Account created successfully! Please verify your email.', 
+          message: 'You successfully created account! Please verify your email.', 
           type: 'success' 
         })
         
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+        // Show verification link in console for development
+        if (result.data?.verifyLink) {
+          console.log('📧 Email Verification Link:', result.data.verifyLink)
+        }
+        
+        // Redirect to login immediately with newSignup flag
+        navigate('/login?newSignup=true')
       } else {
         setNotification({ message: result.message || 'Registration failed', type: 'error' })
       }

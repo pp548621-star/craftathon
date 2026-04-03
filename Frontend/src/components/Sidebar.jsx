@@ -121,24 +121,26 @@ export default function Sidebar() {
 
       {/* Menu Items */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {visibleMenuItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group ${
-              isActive(item.path)
-                ? 'bg-[#2F5B8C] text-white shadow-lg'
-                : 'text-blue-100 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <div className={`transition-transform duration-200 ${isActive(item.path) ? 'scale-110' : 'group-hover:scale-110'}`}>
-              {item.icon}
-            </div>
-            <span className="text-sm">{item.name}</span>
-            {isActive(item.path) && (
-              <div className="ml-auto w-2 h-2 rounded-full bg-[#22C55E] shadow-lg" />
-            )}
-          </Link>
+        {menuItems.map((item) => (
+          (!item.roles || item.roles.includes(user?.role?.toLowerCase())) && (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group ${
+                isActive(item.path)
+                  ? 'bg-[#2F5B8C] text-white shadow-lg'
+                  : 'text-blue-100 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className={`transition-transform duration-200 ${isActive(item.path) ? 'scale-110' : 'group-hover:scale-110'}`}>
+                {item.icon}
+              </div>
+              <span className="text-sm">{item.name}</span>
+              {isActive(item.path) && (
+                <div className="ml-auto w-2 h-2 rounded-full bg-[#22C55E] shadow-lg" />
+              )}
+            </Link>
+          )
         ))}
       </nav>
 

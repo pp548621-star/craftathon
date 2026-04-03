@@ -12,11 +12,12 @@ export default function Landing() {
     if (isLoading) return
 
     if (isAuthenticated && user) {
-      if (user.role === 'doctor') {
+      const userRole = user.role?.toUpperCase()
+      if (userRole === 'CAREGIVER' || userRole === 'DOCTOR') {
         navigate('/caregiver/dashboard', { replace: true })
-      } else if (user.role === 'admin') {
+      } else if (userRole === 'ADMIN') {
         navigate('/admin/dashboard', { replace: true })
-      } else if (user.role === 'patient') {
+      } else if (userRole === 'PATIENT') {
         navigate('/dashboard', { replace: true })
       }
     }
